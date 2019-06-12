@@ -72,15 +72,34 @@ def split_money():
 
     return json.dumps({'campaign_name': campaign_name, 'splitted_money': splitted_money})
 
+import socketio
 
 if __name__ == '__main__':
 
-    if len(sys.argv) > 1:
-        port = sys.argv[1]
+    sio = socketio.Client()
+    sio.connect('http://localhost:5000')
 
-        requests.get('http://127.0.0.1:5000/sign_up_to_group/' + port)
-        app.run(port=port)
+    sio.emit('out_of_money', 'cp_1')
 
-    else:
-        app.run()
+    @sio.on('rearrange')
+    def rearrange(campaign_name):
+        print(campaign_name)
+        return {'campaign_name': campaign_name, 'balance': 5000}
+
+    @sio.on('retake_money')
+    def retake_money(campaign_data):
+        global campaigns_balance
+
+        campaigns_balance[campaign_data['campaign_name']] = campaign_data['balance']
+        print(campaigns_balance)
+
+
+    # if len(sys.argv) > 1:
+    #     port = sys.argv[1]
+    #
+    #     requests.get('http://127.0.0.1:5000/sign_up_to_group/' + port)
+    #     app.run(port=port)
+    #
+    # else:
+    #     app.run()
 
