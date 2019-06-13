@@ -1,10 +1,4 @@
-[
-  {
-    "campaign_name": "campaign_1",
-    "balance": 5000
-  },
-  {
-    "campaign_name": "campaign_2",
-    "balance": 2000
-  }
-]
+{
+  "campaign_1": 5000,
+  "campaign_2": 2000
+}

@@ -1,105 +1,132 @@
 from flask import Flask, request
-import json
-import requests
+import socketio
 import sys
+import json
 
 app = Flask(__name__)
 
-with open('mocks/banker_data.json', 'r') as f:
-    MOCK_DATA = json.load(f)
-
+# Balance, and logger for ads
 campaigns_balance = {}
+ads_logger = {}
 
+# Socket.io client init
+sio = socketio.Client()
+sio.connect('http://localhost:5000')
 
-@app.route('/')
-def index():
-    return json.dumps(MOCK_DATA)
-
-
-@app.route('/sync')
-def sync():
+# Master asks for campaign balance or all of them
+@sio.on('rearrange')
+def rearrange(campaign_name):
     global campaigns_balance
 
-    if 'new_data' not in request.args:
-        return json.dumps({'synced': False})
+    if campaign_name == '*':
+        sio.emit('rearrange', {'campaign_name': '*', 'campaigns': campaigns_balance})
+        return
 
-    new_data = request.args['new_data']
-    campaigns_balance = {**campaigns_balance, **new_data}
+    sio.emit('rearrange',
+             {'campaign_name': campaign_name, 'campaigns': {campaign_name: campaigns_balance[campaign_name]}})
+
+# Master return balance after arranging
+@sio.on('retake_money')
+def retake_money(campaign_data):
+    global campaigns_balance
+
+    if '*' in campaign_data['campaign_name']:
+        campaigns_balance = {**campaigns_balance, **campaign_data['campaigns']}
+    else:
+        campaigns_balance[campaign_data['campaign_name']] = campaign_data['balance']
+
     print(campaigns_balance)
-    return json.dumps({'synced': True})
 
 
-# @app.route('/get_money')
-# def get_money():
+# Some server got feedback that wasn't he's so he informs the master to check with others
+@sio.on('feedback_is_for_other_server')
+def feedback_is_for_other_server(ad_data):
+    global campaigns_balance
+    global ads_logger
 
-# Master Routes
-servers_counter = 0
-servers_group = {}
+    campaign_name = ad_data.campaign_name
+    price = ad_data.price
+    ad_id = ad_data.ad_id
+    got_it = ad_data.got_it
 
-
-@app.route('/sign_up_to_group/<port_number>')
-def sign_up_to_group(port_number):
-    global servers_counter
-    global servers_group
-
-    for k, v in servers_group.items():
-        if v == port_number:
-            return 'Port already exists'
-
-    servers_counter += 1
-    servers_group[servers_counter] = port_number
-    print(servers_group)
-    return json.dumps(servers_group)
+    if campaign_name in ads_logger and ad_id in ads_logger[campaign_name]:
+        if not got_it:
+            campaigns_balance[campaign_name] += price
+            del ads_logger[campaign_name][ad_id]
 
 
-@app.route('/split_money')
-def split_money():
-    global servers_counter
+# Banker api
+@app.route('/')
+def index():
+    return json.dumps(campaigns_balance)
 
-    if not 'money_to_split' in request.args or not 'campaign_name' in request.args:
-        return 'Not valid query'
 
-    if servers_counter == 0:
-        return 'No slaves'
+# Handles the get money request
+@app.route('/get_money')
+def get_money():
+    global campaigns_balance
+    global ads_logger
 
-    money_to_split = request.args['money_to_split']
+    if 'campaign_name' not in request.args or 'price' not in request.args or 'ad_id' not in request.args:
+        return 'wrong parameters'
+
     campaign_name = request.args['campaign_name']
+    price = request.args['price']
+    ad_id = request.args['ad_id']
 
-    splitted_money = int(money_to_split) / servers_counter
+    # Checking if have money or not, if not sending message to master
+    if campaign_name in campaigns_balance:
+        if campaigns_balance[campaign_name] == 0:
+            sio.emit('out_of_money', campaign_name)
+            return json.dumps({'can_buy': False, 'campaign_name': campaign_name, 'price': price, 'ad_id': ad_id})
 
-    for k, v in servers_group.items():
-        requests.post('127.0.0.1:' + v, data={'campaign_name': campaign_name, 'balance': splitted_money})
+        can_buy_ad = float(campaigns_balance[campaign_name]) - float(price)
+        if can_buy_ad >= 0:
+            campaigns_balance[campaign_name] = can_buy_ad
+            if campaign_name not in ads_logger:
+                ads_logger[campaign_name] = {}
+                ads_logger[campaign_name][ad_id] = price
+            else:
+                ads_logger[campaign_name][ad_id] = price
 
-    return json.dumps({'campaign_name': campaign_name, 'splitted_money': splitted_money})
+            return json.dumps({'can_buy': True, 'campaign_name': campaign_name, 'price': price, 'ad_id': ad_id})
+        else:
+            return json.dumps({'can_buy': False, 'campaign_name': campaign_name, 'price': price, 'ad_id': ad_id})
 
-import socketio
+
+# Getting a feedback to know if not got the ad
+@app.route('/feedback')
+def feedback():
+    global campaigns_balance
+    global ads_logger
+
+    if 'campaign_name' not in request.args or 'price' not in request.args or 'ad_id' not in request.args or \
+            'got_it' not in request.args:
+        return 'wrong parameters'
+
+    args = request.args
+
+    campaign_name = args['campaign_name']
+    price = args['price']
+    ad_id = args['ad_id']
+    got_it = args['got_it']
+
+    # Checks if have this ad if not informs the master
+    if campaign_name in ads_logger and ad_id in ads_logger[campaign_name]:
+        if not got_it:
+            campaigns_balance[campaign_name] += price
+            del ads_logger[campaign_name][ad_id]
+
+            return json.dumps(campaigns_balance)
+        else:
+            sio.emit('feedback_is_for_other_server', {'campaign_name': campaign_name, 'price': price,
+                                                      'ad_id': ad_id, 'got_it': got_it})
+
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
 
-    sio = socketio.Client()
-    sio.connect('http://localhost:5000')
-
-    sio.emit('out_of_money', 'cp_1')
-
-    @sio.on('rearrange')
-    def rearrange(campaign_name):
-        print(campaign_name)
-        return {'campaign_name': campaign_name, 'balance': 5000}
-
-    @sio.on('retake_money')
-    def retake_money(campaign_data):
-        global campaigns_balance
-
-        campaigns_balance[campaign_data['campaign_name']] = campaign_data['balance']
-        print(campaigns_balance)
-
-
-    # if len(sys.argv) > 1:
-    #     port = sys.argv[1]
-    #
-    #     requests.get('http://127.0.0.1:5000/sign_up_to_group/' + port)
-    #     app.run(port=port)
-    #
-    # else:
-    #     app.run()
-
+        app.run(port=port)
+    else:
+        app.run(port=4201)
