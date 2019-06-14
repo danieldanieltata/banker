@@ -78,10 +78,13 @@ def get_money():
 
     # Checking if have money or not, if not sending message to master
     if campaign_name in campaigns_balance:
+        
+        # If dosen't have money inform the master
         if campaigns_balance[campaign_name] == 0:
             sio.emit('out_of_money', campaign_name)
             return json.dumps({'can_buy': False, 'campaign_name': campaign_name, 'price': price, 'ad_id': ad_id})
 
+        # If balance if valid after subtraction then make changes if not then retun false
         can_buy_ad = float(campaigns_balance[campaign_name]) - float(price)
         if can_buy_ad >= 0:
             campaigns_balance[campaign_name] = can_buy_ad
@@ -116,10 +119,12 @@ def feedback():
     else:
         got_it = bool('')
 
-    # Checks if have this ad if not informs the master return's campaigns_balance for testing in both case
+    # Checks if have this ad if not informs the master, maybe its in another slave
+    # Return's campaigns_balance for testing in both case
     if campaign_name in ads_logger:
         if not got_it:
 
+            # This ad is not in this slave
             if ad_id not in ads_logger[campaign_name]:
                 sio.emit('feedback_is_for_other_server', {'campaign_name': campaign_name, 'price': price,
                                                           'ad_id': ad_id, 'got_it': got_it})
