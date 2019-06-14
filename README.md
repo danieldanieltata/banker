@@ -17,11 +17,11 @@ python banker-master.py
 ```
 
 ``` 
-python banker-slave.py [port - optional for the first server]
+python banker-slave.py [port number - optional for the first server]
 ```
 
 ```
-python bider.py [port - no need to set if using the default one]
+python bider.py [port number - no need to set if using the default one]
 ```
 # Bugs
 - When you try to run mltiple slaves the socket.io dosent work well(please take a note that the code can hanlde the micro-service pattern)
