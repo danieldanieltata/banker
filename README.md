@@ -1,6 +1,6 @@
 # Banker
 
-
+![Project architecture](https://i.ibb.co/zQ5t38N/Home-Task.png")
 Banker is ad bidding manneger, the project main files:
 I'm have used python 3.7.3 for this project
 
