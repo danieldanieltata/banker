@@ -20,7 +20,7 @@ def get_money_check():
 
         ads_data['campaign_1'][ad_id_counter] = random_price
         request = requests.get(mock_server + '/get_money', params={'campaign_name': 'campaign_1',
-                                                                   'price': random_price, 'ad_id': 123})
+                                                                   'price': random_price, 'ad_id': ad_id_counter})
 
         print(request.json())
         if not dict(request.json())['can_buy']:
@@ -37,7 +37,8 @@ def send_feedback():
             request = requests.get(mock_server + '/feedback', params={'campaign_name': campaign_name, 'price': v,
                                                                       'ad_id': k, 'got_it': random_got_ad})
 
-            print(request.json())
+            print(request.text)
+
 
 if __name__ == '__main__':
     get_all_money_until_refuse = get_money_check()

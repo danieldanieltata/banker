@@ -13,6 +13,7 @@ ads_logger = {}
 sio = socketio.Client()
 sio.connect('http://localhost:5000')
 
+
 # Master asks for campaign balance or all of them
 @sio.on('rearrange')
 def rearrange(campaign_name):
@@ -24,6 +25,7 @@ def rearrange(campaign_name):
 
     sio.emit('rearrange',
              {'campaign_name': campaign_name, 'campaigns': {campaign_name: campaigns_balance[campaign_name]}})
+
 
 # Master return balance after arranging
 @sio.on('retake_money')
@@ -44,10 +46,10 @@ def feedback_is_for_other_server(ad_data):
     global campaigns_balance
     global ads_logger
 
-    campaign_name = ad_data.campaign_name
-    price = ad_data.price
-    ad_id = ad_data.ad_id
-    got_it = ad_data.got_it
+    campaign_name = ad_data['campaign_name']
+    price = ad_data['price']
+    ad_id = ad_data['ad_id']
+    got_it = ad_data['got_it']
 
     if campaign_name in ads_logger and ad_id in ads_logger[campaign_name]:
         if not got_it:
@@ -107,20 +109,34 @@ def feedback():
     args = request.args
 
     campaign_name = args['campaign_name']
-    price = args['price']
+    price = float(args['price'])
     ad_id = args['ad_id']
-    got_it = args['got_it']
+    if args['got_it'] == 'True':
+        got_it = bool(args['got_it'])
+    else:
+        got_it = bool('')
 
-    # Checks if have this ad if not informs the master
-    if campaign_name in ads_logger and ad_id in ads_logger[campaign_name]:
+    # Checks if have this ad if not informs the master return's campaigns_balance for testing in both case
+    if campaign_name in ads_logger:
         if not got_it:
+
+            if ad_id not in ads_logger[campaign_name]:
+                sio.emit('feedback_is_for_other_server', {'campaign_name': campaign_name, 'price': price,
+                                                          'ad_id': ad_id, 'got_it': got_it})
+                return json.dumps(campaigns_balance)
+
             campaigns_balance[campaign_name] += price
             del ads_logger[campaign_name][ad_id]
 
-            return json.dumps(campaigns_balance)
-        else:
-            sio.emit('feedback_is_for_other_server', {'campaign_name': campaign_name, 'price': price,
-                                                      'ad_id': ad_id, 'got_it': got_it})
+        return json.dumps(campaigns_balance)
+
+        # Can write to other places in db because bidder got the ad
+        # else:
+        #    pass
+
+    sio.emit('feedback_is_for_other_server', {'campaign_name': campaign_name, 'price': price,
+                                              'ad_id': ad_id, 'got_it': got_it})
+    return 'Dont have this campaign'
 
 
 if __name__ == '__main__':
