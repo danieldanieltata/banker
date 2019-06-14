@@ -1,7 +1,9 @@
 import requests
 import random
+import sys
 
-mock_server = 'http://127.0.0.1:4201'
+mock_server = 'http://127.0.0.1:'
+port = '4201'
 
 ads_data = {}
 
@@ -41,6 +43,10 @@ def send_feedback():
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+    mock_server += port
+
     get_all_money_until_refuse = get_money_check()
 
     if not get_all_money_until_refuse['can_buy']:
