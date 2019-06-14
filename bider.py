@@ -47,7 +47,9 @@ if __name__ == '__main__':
         port = sys.argv[1]
     mock_server += port
 
+    print('Running mock get money function in loop until gets false')
     get_all_money_until_refuse = get_money_check()
 
     if not get_all_money_until_refuse['can_buy']:
+        print("Running mock feedback function in loops of all ads id's")
         send_feedback()
