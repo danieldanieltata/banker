@@ -27,7 +27,7 @@ python bider.py [port number - no need to set if using the default one]
 - When you try to run mltiple slaves the socket.io dosent work well(please take a note that the code can hanlde the micro-service pattern)
 - Sometimes you need to keep the slaves running and restart the master(this bug is not in all of the terminals but in some of them), somehow in the pycharm editor this bug dosen't exists
 # Edge cases
-- For the sake of the task I'm using only memory and not using db's
+- For the sake of the task I'm using only memory and not using db's - that means that the servers are stateful
 - You can't run mltiple masters
 - If one of the slaves 'died', you can't recover the money and the data back
 
