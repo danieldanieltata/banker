@@ -2,3 +2,4 @@ flask
 flask-socketio
 requests
 python-socketio[client]
+redis

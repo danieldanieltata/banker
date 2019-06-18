@@ -81,11 +81,6 @@ def rearrange(campaign_server_data):
                            broadcast=True)
 
 
-@socket_io.on('feedback_is_for_other_server')
-def feedback_is_for_other_server(ad_data):
-    emit('feedback_is_for_other_server', ad_data, broadcast=True)
-
-
 # disconnect a server
 @socket_io.on('disconnect')
 def disconnect():
